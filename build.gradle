@@ -1,0 +1,83 @@
+plugins {
+    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
+    id 'org.spongepowered.mixin' version '0.7.+'
+    id 'eclipse'
+    id 'maven-publish'
+}
+
+version = '1.1.0'
+group = 'top.bincnpc'
+archivesBaseName = 'cnpccurios'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+minecraft {
+    mappings channel: 'official', version: '1.20.1'
+
+    runs {
+        client {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            property 'mixin.debug.export', 'true'
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
+            mods {
+                cnpccurios {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        server {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            mods {
+                cnpccurios {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        data {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            args '--mod', 'cnpccurios', '--all', '--output', file('src/generated/resources/')
+            mods {
+                cnpccurios {
+                    source sourceSets.main
+                }
+            }
+        }
+    }
+}
+
+sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+repositories {
+    mavenCentral()
+    flatDir { dirs 'libs' }
+}
+
+dependencies {
+    minecraft 'net.minecraftforge:forge:1.20.1-47.4.6'
+    implementation fg.deobf(files('libs/CustomNPCs-1.20.1-GBPort-Unofficial-1.20.1.20260711.jar'))
+    implementation fg.deobf(files('libs/curios-forge-5.14.1+1.20.1.jar'))
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+}
+
+mixin {
+    add sourceSets.main, 'cnpccurios.refmap.json'
+    config 'mixins.cnpccurios.json'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << '-Xlint:-processing'
+}

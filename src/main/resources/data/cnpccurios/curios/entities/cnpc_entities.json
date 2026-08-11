@@ -1,0 +1,26 @@
+{
+  "entities": [
+    "customnpcs:customnpc",
+    "customnpcs:customnpc64x32",
+    "customnpcs:customnpcalex",
+    "customnpcs:customnpcclassic",
+    "customnpcs:npcpony",
+    "customnpcs:npccrystal",
+    "customnpcs:npcslime",
+    "customnpcs:npcdragon",
+    "customnpcs:npcgolem"
+  ],
+  "slots": [
+    "ring",
+    "necklace",
+    "head",
+    "back",
+    "belt",
+    "body",
+    "bracelet",
+    "charm",
+    "hands",
+    "curio",
+    "spellbook"
+  ]
+}

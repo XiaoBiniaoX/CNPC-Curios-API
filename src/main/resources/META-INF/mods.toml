@@ -1,0 +1,51 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+
+license="NC"
+
+[[mods]]
+modId="cnpccurios"
+version="1.1.0"
+displayName="CNPC饰品栏"
+displayURL="https://space.bilibili.com/353609880"
+authors="XiaoBiniaoX"
+description='''为CustomNPC实体添加Curios饰品栏支持（仅NPC，不影响全局），可在NPC物品栏编辑界面配置饰品，并自动渲染在NPC模型上。兼容MM现代化mod、WN(WARBORN)、铁魔法(IronsSpellbooks)的饰品（均可选依赖，自动适配）。'''
+
+# 基础依赖
+[[dependencies.cnpccurios]]
+    modId="forge"
+    mandatory=true
+    versionRange="[47,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.cnpccurios]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.20.1,1.21)"
+    ordering="NONE"
+    side="BOTH"
+
+# CustomNPCs 依赖
+[[dependencies.cnpccurios]]
+    modId="customnpcs"
+    mandatory=true
+    versionRange="[1,)"
+    ordering="NONE"
+    side="BOTH"
+
+# Curios 饰品栏 依赖
+[[dependencies.cnpccurios]]
+    modId="curios"
+    mandatory=true
+    versionRange="[5.0,)"
+    ordering="NONE"
+    side="BOTH"
+
+# MM现代化mod - 可选依赖（兼容适配，非强制）
+[[dependencies.cnpccurios]]
+    modId="mm"
+    mandatory=false
+    versionRange="[0,)"
+    ordering="AFTER"
+    side="BOTH"
