@@ -5,7 +5,7 @@ license="NC"
 
 [[mods]]
 modId="cnpccurios"
-version="1.1.0"
+version="1.2.0"
 displayName="CNPC饰品栏"
 displayURL="https://space.bilibili.com/353609880"
 authors="XiaoBiniaoX"
@@ -49,3 +49,11 @@ description='''为CustomNPC实体添加Curios饰品栏支持（仅NPC，不影�
     versionRange="[0,)"
     ordering="AFTER"
     side="BOTH"
+
+# ragdollified - 可选依赖（NPC死亡布娃娃渲染饰品与护甲，纯反射桥接）
+[[dependencies.cnpccurios]]
+    modId="ragdollified"
+    mandatory=false
+    versionRange="[0,)"
+    ordering="AFTER"
+    side="CLIENT"
