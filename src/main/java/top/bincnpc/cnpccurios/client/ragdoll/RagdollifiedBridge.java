@@ -163,6 +163,18 @@ public final class RagdollifiedBridge {
         }
     }
 
+    /** 布娃娃本体渲染距离平方（默认 128 格），饰品应跟随本体而非护甲距离。 */
+    public static double renderDistSq() {
+        try {
+            Class<?> config = Class.forName("com.raiiiden.ragdollified.config.RagdollifiedConfig");
+            Object value = config.getField("RENDER_DISTANCE").get(null);
+            double distance = ((Number) value.getClass().getMethod("get").invoke(value)).doubleValue();
+            return distance * distance;
+        } catch (Throwable t) {
+            return 16384.0;
+        }
+    }
+
     public static boolean isGeckoLibArmor(Item item) {
         if (mIsGeckoArmor == null) return false;
         try {

@@ -40,7 +40,9 @@ import top.theillusivec4.curios.api.client.ICurioRenderer;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -92,6 +94,7 @@ public final class NpcRagdollRenderer {
         Collection<?> ragdolls = RagdollifiedBridge.allRagdolls();
         if (ragdolls.isEmpty()) return;
         double armorDistSq = RagdollifiedBridge.armorDistSq();
+        double renderDistSq = RagdollifiedBridge.renderDistSq();
         PoseStack poseStack = event.getPoseStack();
         Vec3 cam = event.getCamera().getPosition();
         float partialTick = event.getPartialTick();
@@ -110,14 +113,17 @@ public final class NpcRagdollRenderer {
             double dx = torso[0] - cam.x;
             double dy = torso[1] - cam.y;
             double dz = torso[2] - cam.z;
-            if (dx * dx + dy * dy + dz * dz > armorDistSq) continue;
+            double distSq = dx * dx + dy * dy + dz * dz;
+            if (distSq > renderDistSq) continue;
             int light = LevelRendererLight(level, torso);
             poseStack.pushPose();
             try {
                 poseStack.translate(-cam.x, -cam.y, -cam.z);
                 poseStack.translate(torso[0], torso[1] + RagdollifiedBridge.liquidBob(ragdoll), torso[2]);
                 ensureModels();
-                renderArmor(npc, poseStack, buffer, light, trs);
+                if (distSq <= armorDistSq) {
+                    renderArmor(npc, poseStack, buffer, light, trs);
+                }
                 renderCurios(npc, poseStack, buffer, light, partialTick, trs);
                 drew = true;
             } catch (Exception e) {
@@ -476,7 +482,8 @@ public final class NpcRagdollRenderer {
 
     // ---------------- 姿态（照抄 ragdollified poseFromPhysics） ----------------
 
-    private record SavedPose(float[] data, boolean young, boolean riding, boolean crouching) {
+    private record SavedPose(float[] data, boolean young, boolean riding, boolean crouching,
+                             Map<ModelPart, Boolean> visibility) {
     }
 
     private static ModelPart[] parts(HumanoidModel<?> m) {
@@ -486,6 +493,7 @@ public final class NpcRagdollRenderer {
     private static SavedPose savePose(HumanoidModel<?> m) {
         ModelPart[] ps = parts(m);
         float[] data = new float[ps.length * 6];
+        Map<ModelPart, Boolean> visibility = new IdentityHashMap<>();
         for (int i = 0; i < ps.length; i++) {
             ModelPart p = ps[i];
             int o = i * 6;
@@ -495,8 +503,10 @@ public final class NpcRagdollRenderer {
             data[o + 3] = p.xRot;
             data[o + 4] = p.yRot;
             data[o + 5] = p.zRot;
+            visibility.put(p, p.visible);
+            p.getAllParts().forEach(child -> visibility.put(child, child.visible));
         }
-        return new SavedPose(data, m.young, m.riding, m.crouching);
+        return new SavedPose(data, m.young, m.riding, m.crouching, visibility);
     }
 
     private static void restorePose(HumanoidModel<?> m, SavedPose s) {
@@ -512,6 +522,7 @@ public final class NpcRagdollRenderer {
         m.young = s.young();
         m.riding = s.riding();
         m.crouching = s.crouching();
+        s.visibility().forEach((part, visible) -> part.visible = visible);
     }
 
     private static void poseFromPhysics(HumanoidModel<?> model, float[][] trs) {
