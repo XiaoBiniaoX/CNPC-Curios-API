@@ -1,0 +1,50 @@
+# CNPC饰品栏 (CNPC Curios) —— 1.21.1 NeoForge
+# mod 显示名与描述内含中文，直接硬编码在此处，不参与 Groovy expand，避免变量展开与编码风险。
+
+modLoader="javafml" #mandatory
+loaderVersion="${loader_version_range}" #mandatory
+
+license="${mod_license}"
+
+[[mods]] #mandatory
+modId="${mod_id}" #mandatory
+version="${mod_version}" #mandatory
+displayName="CNPC饰品栏" #mandatory
+displayURL="https://space.bilibili.com/353609880"
+authors="XiaoBiniaoX"
+description='''为CustomNPC实体添加Curios饰品栏支持（仅NPC，不影响全局），可在NPC物品栏编辑界面配置饰品，并自动渲染在NPC模型上。'''
+
+# mixin 配置声明，NeoForge 需要显式声明才会加载
+[[mixins]]
+config="mixins.cnpccurios.json"
+
+# 基础依赖
+[[dependencies.${mod_id}]]
+    modId="neoforge"
+    type="required"
+    versionRange="[${neo_version},)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="minecraft"
+    type="required"
+    versionRange="${minecraft_version_range}"
+    ordering="NONE"
+    side="BOTH"
+
+# CustomNPCs 依赖
+[[dependencies.${mod_id}]]
+    modId="customnpcs"
+    type="required"
+    versionRange="[1,)"
+    ordering="NONE"
+    side="BOTH"
+
+# Curios 饰品栏 依赖
+[[dependencies.${mod_id}]]
+    modId="curios"
+    type="required"
+    versionRange="[9.0,)"
+    ordering="NONE"
+    side="BOTH"

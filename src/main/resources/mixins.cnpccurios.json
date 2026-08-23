@@ -1,0 +1,19 @@
+{
+    "required": true,
+    "minVersion": "0.8",
+    "package": "top.bincnpc.cnpccurios.mixin",
+    "compatibilityLevel": "JAVA_21",
+    "mixins": [
+        "MixinContainerNPCInv",
+        "MixinContainerNPCQuickMove",
+        "MixinCuriosEntityManager"
+    ],
+    "client": [
+        "MixinGuiNPCInv",
+        "MixinRenderNPCInterface"
+    ],
+    "server": [],
+    "injectors": {
+        "defaultRequire": 1
+    }
+}
