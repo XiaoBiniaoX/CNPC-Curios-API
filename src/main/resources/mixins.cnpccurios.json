@@ -5,16 +5,17 @@
     "compatibilityLevel": "JAVA_17",
     "refmap": "cnpccurios.refmap.json",
     "mixins": [
+        "MixinEntityCuriosPersistence",
         "MixinContainerNPCInv",
         "MixinContainerNPCQuickMove",
         "mm.MixinGenericSpecialGogglesItem",
         "mm.MixinHeadGearItems",
-        "mm.MixinCurioBaseItem",
-        "mm.MixinWarbornBackpackLayer"
+        "mm.MixinCurioBaseItem"
     ],
     "client": [
         "MixinGuiNPCInv",
-        "MixinRenderNPCInterface"
+        "MixinRenderNPCInterface",
+        "mm.MixinWarbornBackpackLayer"
     ],
     "server": []
 }

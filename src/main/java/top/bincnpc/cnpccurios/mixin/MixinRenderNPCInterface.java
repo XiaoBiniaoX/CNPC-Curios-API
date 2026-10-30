@@ -4,16 +4,23 @@ import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.renderer.MultiBufferSource;
 import noppes.npcs.client.renderer.RenderNPCInterface;
+import noppes.npcs.entity.EntityNPCInterface;
+import noppes.npcs.mixin.LivingRenderer2Mixin;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import top.theillusivec4.curios.client.render.CuriosLayer;
+import top.bincnpc.cnpccurios.client.SafeNPCCuriosLayer;
+import top.bincnpc.cnpccurios.client.GuardedNPCLayer;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 在 RenderNPCInterface 构造末尾注入渲染层。
@@ -26,6 +33,7 @@ public abstract class MixinRenderNPCInterface {
     @Unique private static Method sAddLayer;
     @Unique private static boolean wnChecked;
     @Unique private static boolean wnAvailable;
+    @Unique private final List<RenderLayer<?, ?>> cnpccurios$ownedLayers = new ArrayList<>();
 
     @Inject(method = "<init>(Lnet/minecraft/client/renderer/entity/EntityRendererProvider$Context;Lnet/minecraft/client/model/EntityModel;F)V",
             at = @At("RETURN"))
@@ -41,13 +49,33 @@ public abstract class MixinRenderNPCInterface {
             }
 
             // 1. 注入 CuriosLayer（标准Curios饰品渲染）
-            sAddLayer.invoke(this, new CuriosLayer((LivingEntityRenderer) (Object) this));
+            RenderLayer layer = new SafeNPCCuriosLayer((LivingEntityRenderer) (Object) this);
+            cnpccurios$ownedLayers.add(layer);
+            sAddLayer.invoke(this, layer);
 
             // 2. 注入 WN 渲染层（仅当WN mod存在时）
             injectWNLayers();
 
         } catch (Throwable t) {
             System.err.println("[CNPCcurios] addLayer(render) failed: " + t);
+        }
+    }
+
+    // RenderCustomNpc rebuilds its shared layer list when ANY NPC changes model.
+    // Run after that rebuild (the call to super.render), not just during construction.
+    @Inject(method = "render(Lnoppes/npcs/entity/EntityNPCInterface;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V",
+            at = @At("HEAD"))
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private void cnpccurios$restoreLayers(EntityNPCInterface npc, float yaw, float partialTick,
+                                         PoseStack pose, MultiBufferSource buffer, int light, CallbackInfo ci) {
+        List layers = ((LivingRenderer2Mixin) this).layers();
+        // Run our isolated layers before unrelated layers which might themselves throw.
+        for (int i = 0; i < cnpccurios$ownedLayers.size(); i++) {
+            RenderLayer<?, ?> layer = cnpccurios$ownedLayers.get(i);
+            if (layers.indexOf(layer) != i) {
+                layers.remove(layer);
+                layers.add(i, layer);
+            }
         }
     }
 
@@ -81,7 +109,10 @@ public abstract class MixinRenderNPCInterface {
                     System.err.println("[CNPCcurios] No single-param constructor for " + className);
                     continue;
                 }
-                Object layer = matchedCtor.newInstance(this);
+                @SuppressWarnings({"rawtypes", "unchecked"})
+                RenderLayer layer = new GuardedNPCLayer((LivingEntityRenderer) (Object) this,
+                        (RenderLayer) matchedCtor.newInstance(this));
+                cnpccurios$ownedLayers.add(layer);
                 sAddLayer.invoke(this, layer);
                 System.out.println("[CNPCcurios] WN layer injected: " + className);
             } catch (ClassNotFoundException ignored) {

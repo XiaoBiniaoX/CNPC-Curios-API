@@ -407,7 +407,8 @@ public final class NpcRagdollRenderer {
         @SuppressWarnings("unchecked")
         EntityRenderer<EntityNPCInterface> raw = (EntityRenderer<EntityNPCInterface>) (EntityRenderer<?>) renderer;
         ResourceLocation texture = raw.getTextureLocation(npc);
-        SavedPose saved = savePose(body);
+        top.bincnpc.cnpccurios.client.RenderIsolation.ModelState saved =
+                new top.bincnpc.cnpccurios.client.RenderIsolation.ModelState(body);
         ps.pushPose();
         try {
             QUAT.set(torso[3], torso[4], torso[5], torso[6]).rotateZ((float) Math.PI);
@@ -428,17 +429,20 @@ public final class NpcRagdollRenderer {
             };
             float ageInTicks = npc.tickCount + partialTick;
             for (Worn w : worn) {
-                Optional<ICurioRenderer> opt = CuriosRendererRegistry.getRenderer(w.stack().getItem());
-                if (opt.isPresent()) {
-                    opt.get().render(w.stack(), new SlotContext(w.id(), npc, w.index(), w.cosmetic(), w.renders()),
-                            ps, parent, buffer, light, 0, 0, partialTick, ageInTicks, 0, 0);
-                } else if (RagdollifiedBridge.isGeckoLibArmor(w.stack().getItem())) {
-                    renderGeckoCurio(w.stack(), ps, buffer, light, npc, body);
-                }
+                top.bincnpc.cnpccurios.client.RenderIsolation.run(npc, w.id() + "[" + w.index() + "] ragdoll",
+                        body, ps, isolated -> {
+                            Optional<ICurioRenderer> opt = CuriosRendererRegistry.getRenderer(w.stack().getItem());
+                            if (opt.isPresent()) {
+                                opt.get().render(w.stack(), new SlotContext(w.id(), npc, w.index(), w.cosmetic(), w.renders()),
+                                        isolated, parent, buffer, light, 0, 0, partialTick, ageInTicks, 0, 0);
+                            } else if (RagdollifiedBridge.isGeckoLibArmor(w.stack().getItem())) {
+                                renderGeckoCurio(w.stack(), isolated, buffer, light, npc, body);
+                            }
+                        });
             }
         } finally {
             ps.popPose();
-            restorePose(body, saved);
+            saved.restore();
         }
     }
 
@@ -453,7 +457,7 @@ public final class NpcRagdollRenderer {
                 List<Boolean> renders = sh.getRenders();
                 for (int i = 0; i < stacks.getSlots(); i++) {
                     boolean renderStatus = renders.size() > i && Boolean.TRUE.equals(renders.get(i));
-                    ItemStack stack = cosmetics.getStackInSlot(i);
+                    ItemStack stack = i < cosmetics.getSlots() ? cosmetics.getStackInSlot(i) : ItemStack.EMPTY;
                     boolean cosmetic = true;
                     if (stack.isEmpty() && renderStatus) {
                         stack = stacks.getStackInSlot(i);
@@ -481,49 +485,6 @@ public final class NpcRagdollRenderer {
     }
 
     // ---------------- 姿态（照抄 ragdollified poseFromPhysics） ----------------
-
-    private record SavedPose(float[] data, boolean young, boolean riding, boolean crouching,
-                             Map<ModelPart, Boolean> visibility) {
-    }
-
-    private static ModelPart[] parts(HumanoidModel<?> m) {
-        return new ModelPart[]{m.head, m.hat, m.body, m.rightArm, m.leftArm, m.rightLeg, m.leftLeg};
-    }
-
-    private static SavedPose savePose(HumanoidModel<?> m) {
-        ModelPart[] ps = parts(m);
-        float[] data = new float[ps.length * 6];
-        Map<ModelPart, Boolean> visibility = new IdentityHashMap<>();
-        for (int i = 0; i < ps.length; i++) {
-            ModelPart p = ps[i];
-            int o = i * 6;
-            data[o] = p.x;
-            data[o + 1] = p.y;
-            data[o + 2] = p.z;
-            data[o + 3] = p.xRot;
-            data[o + 4] = p.yRot;
-            data[o + 5] = p.zRot;
-            visibility.put(p, p.visible);
-            p.getAllParts().forEach(child -> visibility.put(child, child.visible));
-        }
-        return new SavedPose(data, m.young, m.riding, m.crouching, visibility);
-    }
-
-    private static void restorePose(HumanoidModel<?> m, SavedPose s) {
-        ModelPart[] ps = parts(m);
-        for (int i = 0; i < ps.length; i++) {
-            ModelPart p = ps[i];
-            int o = i * 6;
-            p.setPos(s.data()[o], s.data()[o + 1], s.data()[o + 2]);
-            p.xRot = s.data()[o + 3];
-            p.yRot = s.data()[o + 4];
-            p.zRot = s.data()[o + 5];
-        }
-        m.young = s.young();
-        m.riding = s.riding();
-        m.crouching = s.crouching();
-        s.visibility().forEach((part, visible) -> part.visible = visible);
-    }
 
     private static void poseFromPhysics(HumanoidModel<?> model, float[][] trs) {
         model.young = false;
