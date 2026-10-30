@@ -3,12 +3,21 @@ package top.bincnpc.cnpccurios.mixin;
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
+import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import noppes.npcs.client.renderer.RenderNPCInterface;
+import noppes.npcs.entity.EntityNPCInterface;
+import noppes.npcs.mixin.LivingRenderer2Mixin;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import top.theillusivec4.curios.client.render.CuriosLayer;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.renderer.MultiBufferSource;
+import top.bincnpc.cnpccurios.client.SafeNPCCuriosLayer;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 在 RenderNPCInterface 构造末尾注入 CuriosLayer，让 NPC 把佩戴的饰品渲染出来。
@@ -33,6 +42,10 @@ import top.theillusivec4.curios.client.render.CuriosLayer;
 public abstract class MixinRenderNPCInterface<T extends net.minecraft.world.entity.LivingEntity, M extends EntityModel<T>>
         extends LivingEntityRenderer<T, M> {
 
+    /** 本 mod 拥有的层；CNPC 重建共享 layers 后据此补回，不依赖一次性的构造注入。 */
+    @Unique
+    private final List<RenderLayer<T, M>> cnpccurios$ownedLayers = new ArrayList<>();
+
     /** 仅为满足编译（mixin 类不会被真正实例化） */
     private MixinRenderNPCInterface(EntityRendererProvider.Context ctx, M model, float shadow) {
         super(ctx, model, shadow);
@@ -41,8 +54,29 @@ public abstract class MixinRenderNPCInterface<T extends net.minecraft.world.enti
     @Inject(method = "<init>(Lnet/minecraft/client/renderer/entity/EntityRendererProvider$Context;Lnet/minecraft/client/model/EntityModel;F)V",
             at = @At("RETURN"))
     private void cnpccurios$onConstructed(EntityRendererProvider.Context manager, M model, float shadowSize, CallbackInfo ci) {
-        // CuriosLayer 自己会在 render 时遍历实体的饰品栏，NPC 没有饰品栏时它什么都不画，
-        // 因此这里无条件添加即可，不需要判断该 NPC 是否配了槽位。
-        this.addLayer(new CuriosLayer<>(this));
+        RenderLayer<T, M> layer = new SafeNPCCuriosLayer<>(this);
+        cnpccurios$ownedLayers.add(layer);
+        this.addLayer(layer);
+    }
+
+    /**
+     * RenderCustomNpc 在模型切换时会 clear 当前共享 layers，再从自己的 npclayers 重建；
+     * 构造后才加入的饰品层不在 npclayers 中，会永久丢失。父 render 的 HEAD 位于该重建之后，
+     * 因此每次在这里把自有层放回最前方；先 remove 再按索引 add，保证不累积重复层。
+     */
+    @Inject(method = "render(Lnoppes/npcs/entity/EntityNPCInterface;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V",
+            at = @At("HEAD"))
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private void cnpccurios$restoreLayers(EntityNPCInterface npc, float yaw, float partialTick,
+                                          PoseStack pose, MultiBufferSource buffer, int light,
+                                          CallbackInfo ci) {
+        List<RenderLayer<T, M>> layers = (List) ((LivingRenderer2Mixin) (Object) this).layers();
+        for (int i = 0; i < cnpccurios$ownedLayers.size(); i++) {
+            RenderLayer<T, M> layer = cnpccurios$ownedLayers.get(i);
+            if (layers.indexOf(layer) != i) {
+                layers.remove(layer);
+                layers.add(i, layer);
+            }
+        }
     }
 }

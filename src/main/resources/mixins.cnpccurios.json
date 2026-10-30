@@ -6,7 +6,8 @@
     "mixins": [
         "MixinContainerNPCInv",
         "MixinContainerNPCQuickMove",
-        "MixinCuriosEntityManager"
+        "MixinCuriosEntityManager",
+        "MixinEntityCuriosPersistence"
     ],
     "client": [
         "MixinGuiNPCInv",
