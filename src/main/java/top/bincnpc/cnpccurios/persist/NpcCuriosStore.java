@@ -5,8 +5,8 @@ import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.storage.LevelResource;
-import noppes.npcs.entity.EntityNPCInterface;
 import top.bincnpc.cnpccurios.CNPCcurios;
 
 import java.io.ByteArrayOutputStream;
@@ -28,7 +28,7 @@ public final class NpcCuriosStore {
     static final String ID = "CNPCcuriosDataId";
     static final String ATTACHMENTS = "neoforge:attachments";
     static final String CAP = "curios:inventory";
-    private static final Map<EntityNPCInterface, State> ACTIVE = new WeakHashMap<>();
+    private static final Map<LivingEntity, State> ACTIVE = new WeakHashMap<>();
 
     private NpcCuriosStore() {}
 
@@ -53,26 +53,26 @@ public final class NpcCuriosStore {
     }
 
     /** Entity.load HEAD：必要时把外置数据贴回副本，绝不修改传入的原始 NBT。 */
-    public static synchronized CompoundTag prepareLoad(EntityNPCInterface npc, CompoundTag input) {
+    public static synchronized CompoundTag prepareLoad(LivingEntity npc, CompoundTag input) {
         if (npc == null || input == null || !(npc.level() instanceof ServerLevel level)) return input;
         UUID owner = input.hasUUID("UUID") ? input.getUUID("UUID") : npc.getUUID();
         State state = new State(directory(level), owner);
         ACTIVE.put(npc, state);
-        return prepareLoad(state, input);
+        return prepareLoad(state, input, npc);
     }
 
     /** Entity.saveWithoutId RETURN：持久化并在确认安全后从本次保存结果摘除内联数据。 */
-    public static synchronized void save(EntityNPCInterface npc, CompoundTag tag) {
+    public static synchronized void save(LivingEntity npc, CompoundTag tag) {
         if (npc == null || tag == null || !(npc.level() instanceof ServerLevel level)) return;
         Path directory = directory(level);
         State state = ACTIVE.get(npc);
         if (state == null || !state.owner.equals(npc.getUUID()) || !state.directory.equals(directory)) {
             state = new State(directory, npc.getUUID());
             // 覆盖 CNPC 的克隆/导入等未经过普通 load 的保存路径。
-            prepareLoad(state, tag);
+            prepareLoad(state, tag, npc);
             ACTIVE.put(npc, state);
         }
-        save(state, tag);
+        save(state, tag, npc);
     }
 
     private static Path directory(ServerLevel level) {
@@ -81,6 +81,15 @@ public final class NpcCuriosStore {
     }
 
     static CompoundTag prepareLoad(State state, CompoundTag input) {
+        return prepareLoad(state, input, null);
+    }
+
+    /**
+     * @param wearer 穿戴者；非空时会把放错槽位的旧饰品归位（见 {@link CuriosSlotRelocation}）。
+     *               纯文件级自检传 null，不做需要注册表/槽位数据的归位。
+     */
+    static CompoundTag prepareLoad(State state, CompoundTag input,
+                                   LivingEntity wearer) {
         state.originalReference = input.get(ID) == null ? null : input.get(ID).copy();
         CompoundTag inline = inline(input);
         try {
@@ -120,14 +129,19 @@ public final class NpcCuriosStore {
                 return input;
             }
 
+            // 旧存档里已被放进不兼容槽位的饰品在这里归位；否则 Curios 反序列化会
+            // 判为非法并抛成掉落物（哈基彬实测：复制魔杖后饰品掉出、槽位清空）。
+            CuriosSlotRelocation.relocateInPlace(state.data, wearer);
+
             if (hasCuriosEntries(state.data) || state.originalReference != null) {
                 if (!Files.exists(state.file()) || !state.data.equals(existing)) {
                     write(state.file(), record(state, state.data), true);
                 }
                 state.verified = true;
             }
-            if (inline != null) return input; // 迁移加载不破坏源 NBT；在后续成功保存时再摘除。
 
+            // 迁移加载不破坏源 NBT；但必须把归位后的数据交给 Curios 反序列化，
+            // 否则本条 NPC 仍会带着错槽数据进入 CurioInventory.init 而掉落。
             CompoundTag restored = input.copy();
             CompoundTag attachments = restored.getCompound(ATTACHMENTS);
             attachments.put(CAP, state.data.copy());
@@ -142,6 +156,11 @@ public final class NpcCuriosStore {
     }
 
     static void save(State state, CompoundTag tag) {
+        save(state, tag, null);
+    }
+
+    static void save(State state, CompoundTag tag,
+                     LivingEntity wearer) {
         CompoundTag data = inline(tag);
         if (state.blocked) {
             if (state.originalReference != null) {
@@ -158,6 +177,9 @@ public final class NpcCuriosStore {
 
         try {
             validateData(data);
+            // 保存路径同样归位：GUI 里若仍有其它来源写入了错槽物品，落盘前纠正，
+            // 使下一次加载/克隆不会再把它当成非法饰品抛出。
+            CuriosSlotRelocation.relocateInPlace(data, wearer);
             if (!state.verified && !hasCuriosEntries(data)) return;
             if (!state.verified || !data.equals(state.data) || !Files.isRegularFile(state.file())) {
                 write(state.file(), record(state, data), true);

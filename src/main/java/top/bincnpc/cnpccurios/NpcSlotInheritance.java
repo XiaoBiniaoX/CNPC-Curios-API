@@ -141,14 +141,33 @@ public final class NpcSlotInheritance {
         if (stack == null || stack.isEmpty()) return true;
         if (npc == null || slotId == null) return false;
 
-        // 先过 Curios 自己的校验（槽位类型是否接受该物品）
-        if (!top.theillusivec4.curios.api.CuriosApi.isStackValid(
-                new top.theillusivec4.curios.api.SlotContext(slotId, npc, slotIndex, false, true),
-                stack)) {
+        var ctx = new top.theillusivec4.curios.api.SlotContext(
+                slotId, npc, slotIndex, false, true);
+
+        // 先过 Curios 自己的槽位类型校验（物品标签/谓词是否允许该槽）
+        if (!top.theillusivec4.curios.api.CuriosApi.isStackValid(ctx, stack)) {
             return false;
         }
 
-        // 再查是否已在别处戴着同一件物品
+        // 必须再问物品自己的 canEquip。
+        //
+        // 为什么仅靠 isStackValid 不够（哈基彬实测：复制魔杖生成 NPC 后饰品掉出）：
+        // Curios 的 isStackValid（CuriosImplMixinHooks.java:135-148）在物品可进通用
+        // "curio" 槽时，会对**任意**槽位 id 返回 true：
+        //     return id.equals("curio") || slots.contains(id) || slots.contains("curio");
+        // Fieldframe 的腰带/面具等都有严格的 canEquip(SlotContext)：
+        //     ModularBeltItem.java:27-29 → 只接受 "belt"
+        // 于是快捷放入会把腰带放进排序更靠前的 mask/ring 等槽。当前 GUI 能放进，
+        // 但下次反序列化时 CurioInventory.init 会用 DynamicStackHandler.isItemValid
+        // 再查 canEquip（DynamicStackHandler.java:65-73）；失败就 loseInvalidStack，
+        // 下一 tick 由 CurioInventoryCapability.handleInvalidStacks 以掉落物抛出。
+        // 克隆生成、重进世界都会触发这条反序列化链，所以必须在放入时就与 Curios 同标准。
+        if (!top.theillusivec4.curios.api.CuriosApi.getCurio(stack)
+                .map(curio -> curio.canEquip(ctx)).orElse(true)) {
+            return false;
+        }
+
+        // 最后查是否已在别处戴着同一件物品
         return !isAlreadyEquipped(npc, slotId, slotIndex, stack);
     }
 

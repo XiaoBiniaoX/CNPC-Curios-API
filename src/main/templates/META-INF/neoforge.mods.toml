@@ -48,3 +48,11 @@ config="mixins.cnpccurios.json"
     versionRange="[9.0,)"
     ordering="NONE"
     side="BOTH"
+
+# CNPCPlus 硬前置（仅声明依赖，本模组不调用其任何 API）
+[[dependencies.${mod_id}]]
+    modId="cnpcplus"
+    type="required"
+    versionRange="[4.0.6,)"
+    ordering="NONE"
+    side="BOTH"
