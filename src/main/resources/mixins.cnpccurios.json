@@ -8,6 +8,7 @@
         "MixinEntityCuriosPersistence",
         "MixinContainerNPCInv",
         "MixinContainerNPCQuickMove",
+        "MixinNpcInvalidCurios",
         "mm.MixinGenericSpecialGogglesItem",
         "mm.MixinHeadGearItems",
         "mm.MixinCurioBaseItem"

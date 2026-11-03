@@ -5,11 +5,11 @@ license="NC"
 
 [[mods]]
 modId="cnpccurios"
-version="1.3.0"
+version="1.4.0"
 displayName="CNPC饰品栏"
 displayURL="https://space.bilibili.com/353609880"
 authors="XiaoBiniaoX"
-description='''为CustomNPC实体添加Curios饰品栏支持（仅NPC，不影响全局），可在NPC物品栏编辑界面配置饰品，并自动渲染在NPC模型上。兼容MM现代化mod、WN(WARBORN)、铁魔法(IronsSpellbooks)的饰品（均可选依赖，自动适配）。'''
+description='''为CustomNPC实体添加Curios饰品栏支持（仅NPC，不影响全局），可在NPC物品栏编辑界面配置饰品，并自动渲染在NPC模型上。兼容MM现代化mod、WN(WARBORN)、铁魔法(IronsSpellbooks)、Fieldframe的饰品（均可选依赖，自动适配）。'''
 
 # 基础依赖
 [[dependencies.cnpccurios]]
@@ -39,6 +39,14 @@ description='''为CustomNPC实体添加Curios饰品栏支持（仅NPC，不影�
     modId="curios"
     mandatory=true
     versionRange="[5.0,)"
+    ordering="NONE"
+    side="BOTH"
+
+# CNPCplus-Fix 硬前置（仅声明，不实际调用）
+[[dependencies.cnpccurios]]
+    modId="cnpcplus"
+    mandatory=true
+    versionRange="[4.0.6,)"
     ordering="NONE"
     side="BOTH"
 

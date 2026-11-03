@@ -79,7 +79,10 @@ public abstract class MixinContainerNPCInv extends AbstractContainerMenu {
                     addSlotReflect(new SlotItemHandler(sh, si, x, y) {
                         @Override public boolean mayPlace(ItemStack s) {
                             if (s.isEmpty()) return true;
-                            return CuriosApi.isStackValid(new SlotContext(id, npc, si, false, true), s);
+                            SlotContext ctx = new SlotContext(id, npc, si, false, true);
+                            // 与Curios重新读取NBT时的校验保持一致，否则饰品会在加载/复制时被判无效并掉落
+                            return CuriosApi.isStackValid(ctx, s)
+                                    && CuriosApi.getCurio(s).map(c -> c.canEquip(ctx)).orElse(true);
                         }
                         @Override public void setChanged() {
                             super.setChanged();
